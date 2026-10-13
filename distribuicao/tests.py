@@ -86,3 +86,49 @@ class DashboardTests(TestCase):
     def test_dashboard_abre(self):
         resposta = self.client.get(reverse("distribuicao:dashboard"))
         self.assertEqual(resposta.status_code, 200)
+
+
+class CompartilhamentoWhatsAppTests(TestCase):
+    def setUp(self):
+        self.noticia = Noticia.objects.create(
+            wordpress_id=7654321,
+            titulo="Matéria de validação",
+            resumo="Resumo de validação.",
+            url="https://example.com/materia-validacao/",
+        )
+        self.destino = Destino.objects.create(
+            nome="Canal de teste",
+            plataforma=Destino.Plataforma.WHATSAPP,
+            ativo=True,
+        )
+        self.publicacao = Publicacao.objects.create(
+            noticia=self.noticia,
+            destino=self.destino,
+        )
+
+    def test_confirmacao_whatsapp_registra_envio_manual(self):
+        resposta = self.client.post(
+            reverse("distribuicao:marcar_compartilhada", args=[self.publicacao.pk])
+        )
+        self.assertEqual(resposta.status_code, 302)
+        self.publicacao.refresh_from_db()
+        self.assertEqual(self.publicacao.status, Publicacao.Status.ENVIADA)
+        self.assertIn(self.noticia.url, self.publicacao.mensagem)
+
+    def test_confirmacao_whatsapp_nao_aceita_get(self):
+        resposta = self.client.get(
+            reverse("distribuicao:marcar_compartilhada", args=[self.publicacao.pk])
+        )
+        self.assertEqual(resposta.status_code, 405)
+
+    def test_nao_confirma_destino_facebook_com_rota_whatsapp(self):
+        facebook = Destino.objects.create(
+            nome="Página de teste",
+            plataforma=Destino.Plataforma.FACEBOOK,
+            ativo=True,
+        )
+        publicacao = Publicacao.objects.create(noticia=self.noticia, destino=facebook)
+        resposta = self.client.post(
+            reverse("distribuicao:marcar_compartilhada", args=[publicacao.pk])
+        )
+        self.assertEqual(resposta.status_code, 404)
