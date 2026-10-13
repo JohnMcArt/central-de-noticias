@@ -1,3 +1,4 @@
+
 import html
 import re
 from datetime import datetime, time, timedelta
@@ -16,7 +17,10 @@ def limpar_html(texto):
 
 
 def buscar_noticias(site_url, quantidade=None):
-    """Busca notícias do dia e suas imagens destacadas."""
+    """
+    Busca notícias publicadas no dia atual,
+    incluindo a imagem destacada do WordPress.
+    """
     fuso = ZoneInfo(settings.TIME_ZONE)
     hoje = timezone.localdate()
 
@@ -27,7 +31,8 @@ def buscar_noticias(site_url, quantidade=None):
         tzinfo=fuso,
     )
 
-    endpoint = f"{site_url.rstrip('/')}/wp-json/wp/v2/posts"
+    base_url = site_url.rstrip("/")
+    endpoint = f"{base_url}/wp-json/wp/v2/posts"
 
     parametros_base = {
         "status": "publish",
@@ -44,7 +49,10 @@ def buscar_noticias(site_url, quantidade=None):
     pagina = 1
 
     while True:
-        parametros = {**parametros_base, "page": pagina}
+        parametros = {
+            **parametros_base,
+            "page": pagina,
+        }
 
         resposta = requests.get(
             endpoint,
@@ -70,6 +78,7 @@ def buscar_noticias(site_url, quantidade=None):
 
             data_local = data_post.astimezone(fuso)
 
+            # Nunca aceitar notícias de outro dia.
             if data_local.date() != hoje:
                 continue
 
